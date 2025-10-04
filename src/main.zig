@@ -3,10 +3,17 @@ const zsefira = @import("zsefira");
 
 pub fn main() !void {
     var general_purpose_allocator: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    const gpa = general_purpose_allocator.allocator();
+    var gpa = general_purpose_allocator.allocator();
 
     const argsAlloc = try std.process.argsAlloc(gpa);
     defer std.process.argsFree(gpa, argsAlloc);
+
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+
+    if (argsAlloc.len == 0) {
+        // TODO: handle this
+    }
 
     var args = try std.ArrayList([]const u8).initCapacity(gpa, argsAlloc.len);
     defer args.deinit(gpa);
@@ -17,29 +24,7 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, args.items[0], "init")) {
-        try initConfig();
-    }
-}
-
-fn initConfig() !void {
-    var stdin_buffer: [512]u8 = undefined;
-    var stdin_reader_wrapper = std.fs.File.stdin().reader(&stdin_buffer);
-    const reader: *std.Io.Reader = &stdin_reader_wrapper.interface;
-
-    var file = try std.fs.cwd().createFile("sefira.json", .{});
-    defer file.close();
-
-    var file_buffer: [512]u8 = undefined;
-    var file_writer = file.writer(&file_buffer);
-    const fout: *std.Io.Writer = &file_writer.interface;
-
-    while (reader.takeDelimiterExclusive('\n')) |line| {
-        try fout.print("{s}\n", .{line});
-        try fout.flush();
-    } else |err| switch (err) {
-        error.EndOfStream => {},
-        error.StreamTooLong => return err,
-        error.ReadFailed => return err,
+        try zsefira.initConfig(&stdout_writer.interface, &gpa);
     }
 }
 
