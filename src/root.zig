@@ -29,15 +29,8 @@ pub fn initConfig(stdout: *std.Io.Writer, allocator: *std.mem.Allocator) !void {
     var stdin_reader_wrapper = std.fs.File.stdin().reader(&stdin_buffer);
     const reader: *std.Io.Reader = &stdin_reader_wrapper.interface;
 
-    var file = try std.fs.cwd().createFile("sefira.json", .{});
-    defer file.close();
-
-    var file_buffer: [1024]u8 = undefined;
-    var file_writer = file.writer(&file_buffer);
-    const fout: *std.Io.Writer = &file_writer.interface;
-
     var idx: usize = 0;
-    var fields: [3][]const u8 = undefined;
+    var fields: [@typeInfo(SefiraConfig).@"struct".fields.len][]const u8 = undefined;
 
     try stdout.print("Sefira Config\n", .{});
 
@@ -65,15 +58,25 @@ pub fn initConfig(stdout: *std.Io.Writer, allocator: *std.mem.Allocator) !void {
         idx += 1;
     }
 
-    try std.json.Stringify.value(SefiraConfig{
+    try writeConfig(SefiraConfig{
         .appName = fields[0],
         .filePath = fields[1],
         .fileName = fields[2],
-    }, .{}, fout);
-
-    try fout.flush();
+    });
 
     allocator.free(fields[0]);
     allocator.free(fields[1]);
     allocator.free(fields[2]);
+}
+
+fn writeConfig(config: SefiraConfig) !void {
+    var file = try std.fs.cwd().createFile("sefira.json", .{});
+    defer file.close();
+
+    var file_buffer: [1024]u8 = undefined;
+    var file_writer = file.writer(&file_buffer);
+    const fout: *std.Io.Writer = &file_writer.interface;
+
+    try std.json.Stringify.value(config, .{}, fout);
+    try fout.flush();
 }
